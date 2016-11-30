@@ -4,8 +4,11 @@ package
 	import flash.events.Event;
 	import flash.system.MessageChannel;
 	import flash.system.Worker;
+	import flash.utils.ByteArray;
+	import flash.utils.Dictionary;
 	import flash.utils.getTimer;
 	
+	import deltax.common.LittleEndianByteArray;
 	import deltax.worker.CMDKeys;
 	import deltax.worker.MsgChannelKey;
 	
@@ -15,6 +18,8 @@ package
 		private var _msgToMainThread:MessageChannel;
 		
 		private var _preFrameTime:uint;
+		
+		private var _animationMap:Dictionary = new Dictionary(true);
 		
 		public function CaleThread()
 		{
@@ -62,7 +67,92 @@ package
 					trace(arr[1]);
 					sendMsgToMainThread(CMDKeys.TEST,"cale thread is all ready!!");
 					break;
+				case CMDKeys.SHARE_DATA_NOTICE:
+					var key:String = arr[1];
+					var data:ByteArray = Worker.current.getSharedProperty(CMDKeys.SHARE_DATA) as ByteArray;
+					_animationMap[key] = parseData(data);
+					sendMsgToMainThread(CMDKeys.SHARE_DATA_CLEAR,key);
+					break;
 			}
+		}
+		
+		private function parseData(data:ByteArray):Array
+		{
+			var qx:Number;
+			var qy:Number;
+			var qz:Number;
+			var qw:Number;
+			var tx:Number;
+			var ty:Number;
+			var tz:Number;
+			var frameNum:uint = data.readUnsignedInt();
+			data.position = 8;
+			var jointsNum:uint = data.readUnsignedInt();
+			var length:uint = frameNum * jointsNum * 64;
+			var frameMatByte:ByteArray = new ByteArray();
+			frameMatByte.length = length;
+			var localMatByte:ByteArray = new ByteArray();
+			localMatByte.length = length;
+			for(var i:uint = 0;i<frameNum;i++)
+			{
+				for(var j:uint = 0;j<jointsNum;j++)
+				{
+					qx = data.readFloat();
+					qy = data.readFloat();
+					qz = data.readFloat();
+					qw = data.readFloat();
+					tx = data.readFloat();
+					ty = data.readFloat();
+					tz = data.readFloat();
+					frameMatByte.writeFloat((1-(qy * qy+qz * qz) * 2));
+					frameMatByte.writeFloat(((qx * qy +qw * qz) * 2));
+					frameMatByte.writeFloat(((qx * qz - qw * qy)*2));
+					frameMatByte.writeFloat(0);
+					
+					frameMatByte.writeFloat(((qx*qy-qw*qz)*2));
+					frameMatByte.writeFloat((1-((qx*qx+qz*qz)*2)));
+					frameMatByte.writeFloat((qy*qz+qw*qx)*2);
+					frameMatByte.writeFloat(0);
+					
+					frameMatByte.writeFloat(((qx*qz+qw*qy)*2));
+					frameMatByte.writeFloat((qy*qz-qw*qx)*2);
+					frameMatByte.writeFloat((1-((qx*qx+qy*qy)*2)));
+					frameMatByte.writeFloat(0);
+					
+					frameMatByte.writeFloat(tx);
+					frameMatByte.writeFloat(ty);
+					frameMatByte.writeFloat(tz);
+					frameMatByte.writeFloat(1);
+					
+					qx = data.readFloat();
+					qy = data.readFloat();
+					qz = data.readFloat();
+					qw = data.readFloat();
+					tx = data.readFloat();
+					ty = data.readFloat();
+					tz = data.readFloat();
+					localMatByte.writeFloat((1-(qy * qy+qz * qz) * 2));
+					localMatByte.writeFloat(((qx * qy +qw * qz) * 2));
+					localMatByte.writeFloat(((qx * qz - qw * qy)*2));
+					localMatByte.writeFloat(0);
+					
+					localMatByte.writeFloat(((qx*qy-qw*qz)*2));
+					localMatByte.writeFloat((1-((qx*qx+qz*qz)*2)));
+					localMatByte.writeFloat((qy*qz+qw*qx)*2);
+					localMatByte.writeFloat(0);
+					
+					localMatByte.writeFloat(((qx*qz+qw*qy)*2));
+					localMatByte.writeFloat((qy*qz-qw*qx)*2);
+					localMatByte.writeFloat((1-((qx*qx+qy*qy)*2)));
+					localMatByte.writeFloat(0);
+					
+					localMatByte.writeFloat(tx);
+					localMatByte.writeFloat(ty);
+					localMatByte.writeFloat(tz);
+					localMatByte.writeFloat(1);
+				}
+			}
+			return [frameMatByte,localMatByte];
 		}
 		
 		public function sendMsgToMainThread(cmd:String,value:*):void
