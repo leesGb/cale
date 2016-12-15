@@ -2,13 +2,16 @@ package
 {
 	import flash.display.Sprite;
 	import flash.events.Event;
+	import flash.net.URLLoaderDataFormat;
 	import flash.system.MessageChannel;
 	import flash.system.Worker;
 	import flash.utils.ByteArray;
 	import flash.utils.Dictionary;
+	import flash.utils.Endian;
 	import flash.utils.getTimer;
 	
-	import deltax.common.LittleEndianByteArray;
+	import deltax.common.respackage.common.LoaderCommon;
+	import deltax.common.respackage.loader.LoaderManager;
 	import deltax.worker.CMDKeys;
 	import deltax.worker.MsgChannelKey;
 	
@@ -67,13 +70,24 @@ package
 					trace(arr[1]);
 					sendMsgToMainThread(CMDKeys.TEST,"cale thread is all ready!!");
 					break;
-				case CMDKeys.SHARE_DATA_NOTICE:
-					var key:String = arr[1];
-					var data:ByteArray = Worker.current.getSharedProperty(CMDKeys.SHARE_DATA) as ByteArray;
-					_animationMap[key] = parseData(data);
-					sendMsgToMainThread(CMDKeys.SHARE_DATA_CLEAR,key);
+//				case CMDKeys.PARSE_DATA_NOTICE:
+//					var key:String = arr[1];
+//					var data:ByteArray = Worker.current.getSharedProperty(CMDKeys.SHARE_DATA) as ByteArray;
+//					data.endian = Endian.LITTLE_ENDIAN;
+//					data.position = 0;
+//					_animationMap[key] = parseData(data);
+//					sendMsgToMainThread(CMDKeys.SHARE_DATA_CLEAR,key);
+//					break;
+				case "test":
+					LoaderManager.getInstance().load("assets/config/tableData.pak",{onComplete:onFinished},LoaderCommon.LOADER_URL, false, {dataFormat:URLLoaderDataFormat.BINARY});
 					break;
 			}
+		}
+		
+		private function onFinished(param:Object):void
+		{
+			trace("cale load success======================");
+			sendMsgToMainThread("test","ppppp");
 		}
 		
 		private function parseData(data:ByteArray):Array
